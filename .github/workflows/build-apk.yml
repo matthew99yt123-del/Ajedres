@@ -1,0 +1,49 @@
+
+name: Compilar APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descomprimir proyecto
+        run: |
+          unzip -q "AjedrezAsistente (1).zip" -d temp
+          cp -a temp/AjedrezAsistente/. .
+          rm -rf temp
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Conseguir Stockfish
+        run: |
+          mkdir -p app/src/main/jniLibs/arm64-v8a
+          curl -fL -o sf.tar https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-android-armv8.tar
+          mkdir sf
+          tar -xf sf.tar -C sf
+          BIN=$(find sf -type f -name 'stockfish*' ! -name '*.txt' ! -name '*.md' | head -1)
+          test -n "$BIN"
+          cp "$BIN" app/src/main/jniLibs/arm64-v8a/libstockfish.so
+
+      - name: Compilar APK
+        run: gradle assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AjedrezAsistente-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          
